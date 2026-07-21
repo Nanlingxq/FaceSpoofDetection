@@ -1,0 +1,18 @@
+.idea/
+
+# Python caches and local environments
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+
+# Runtime output and experiment logs
+nohup.out
+saved_logs/
+swanlog/
+
+# Local model/training outputs
+*.log
+*.tmp
