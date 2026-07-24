@@ -345,3 +345,42 @@ class RandomRotation(object):
         return F.rotate(img, angle, self.resample, self.expand, self.center)
 
 
+
+
+class PairedTrainTransform(object):
+    """Apply identical geometry to RGB/depth/mask, color jitter only to RGB."""
+
+    def __init__(self, size, crop_scale=(0.9, 1.1), rotation=10, flip_probability=0.5):
+        self.size = tuple(size) if isinstance(size, (tuple, list)) else (size, size)
+        self.crop_scale = crop_scale
+        self.rotation = rotation
+        self.flip_probability = flip_probability
+        self.paired = True
+        self.to_pil = ToPILImage()
+
+    def __call__(self, image, depth, mask):
+        image = self.to_pil(image)
+        depth = Image.fromarray(np.asarray(depth, dtype=np.uint8), mode="L")
+        mask = Image.fromarray(np.asarray(mask, dtype=np.uint8), mode="L")
+
+        i, j, h, w = RandomResizedCrop.get_params(image, self.crop_scale, (3.0 / 4.0, 4.0 / 3.0))
+        image = F.resized_crop(image, i, j, h, w, self.size, Image.BILINEAR)
+        depth = F.resized_crop(depth, i, j, h, w, self.size, Image.BILINEAR)
+        mask = F.resized_crop(mask, i, j, h, w, self.size, Image.NEAREST)
+
+        image = ColorJitter(0.4, 0.4, 0.4, 0.1)(image)
+        angle = RandomRotation.get_params((-self.rotation, self.rotation))
+        image = F.rotate(image, angle, resample=Image.BILINEAR)
+        depth = F.rotate(depth, angle, resample=Image.BILINEAR)
+        mask = F.rotate(mask, angle, resample=Image.NEAREST)
+
+        if random.random() < self.flip_probability:
+            image = F.hflip(image)
+            depth = F.hflip(depth)
+            mask = F.hflip(mask)
+
+        import torch
+        image_tensor = F.to_tensor(image)
+        depth_tensor = torch.from_numpy(np.asarray(depth, dtype=np.float32) / 255.0).unsqueeze(0)
+        mask_tensor = torch.from_numpy((np.asarray(mask, dtype=np.uint8) > 0).astype(np.float32)).unsqueeze(0)
+        return image_tensor, depth_tensor, mask_tensor

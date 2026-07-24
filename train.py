@@ -23,6 +23,10 @@ def parse_args():
     parser.add_argument("--device_ids", type=str, default="1", help="which gpu id, 0123")
     parser.add_argument("--patch_info", type=str, default="1_80x80",
                         help="[org_1_80x60 / 1_80x80 / 2.7_80x80 / 4_80x80]")
+    parser.add_argument(
+        "--enable_depth_aux", action="store_true",
+        help="Enable depth auxiliary supervision; default keeps the original strategy.",
+    )
     # parser.add_argument("--test_pretrained_only", default= False, help="only test the pretrained model")
     return parser.parse_args()
 
@@ -39,6 +43,8 @@ from src.default_config import get_default_config, update_config
 if __name__ == "__main__":
     conf = get_default_config()
     conf = update_config(args, conf)
+    if args.enable_depth_aux:
+        conf.depth_aux_enabled = True
     run = swanlab.init(project="FaceSpoofDetection", experiment_name=f'Training_in_{args.patch_info}', config=conf)
     trainer = TrainMain(conf)
     trainer.train_model()
