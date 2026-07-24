@@ -27,6 +27,10 @@ def parse_args():
         "--enable_depth_aux", action="store_true",
         help="Enable depth auxiliary supervision; default keeps the original strategy.",
     )
+    parser.add_argument(
+        "--num_classes", type=int, default=None, choices=(2, 3),
+        help="Override the classifier class count (2 or 3).",
+    )
     # parser.add_argument("--test_pretrained_only", default= False, help="only test the pretrained model")
     return parser.parse_args()
 
@@ -43,6 +47,8 @@ from src.default_config import get_default_config, update_config
 if __name__ == "__main__":
     conf = get_default_config()
     conf = update_config(args, conf)
+    if args.num_classes is not None:
+        conf.num_classes = args.num_classes
     if args.enable_depth_aux:
         conf.depth_aux_enabled = True
     run = swanlab.init(project="FaceSpoofDetection", experiment_name=f'Training_in_{args.patch_info}', config=conf)

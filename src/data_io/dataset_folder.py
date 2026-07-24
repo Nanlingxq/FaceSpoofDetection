@@ -63,12 +63,30 @@ class DatasetFolderFT(datasets.ImageFolder):
         self.depth_target_mode = depth_target_mode
         if self.conf.num_classes == 2:
             self._remap_labels()
+        if self.depth_aux_enabled:
+            self._filter_missing_depth_samples()
         # 进行重新采样
         if self.is_train and getattr(self.conf, 'enable_resample', False):
             self._resample_minority_classes()
 
         self._calculate_class_weights()
 
+    def _filter_missing_depth_samples(self):
+        """Skip samples whose prepared depth target is unavailable."""
+        kept_samples = []
+        missing = 0
+        for path, target in self.samples:
+            relative_path = Path(path).relative_to(Path(self.root))
+            depth_path = self.depth_root / relative_path
+            if depth_path.is_file():
+                kept_samples.append((path, target))
+            else:
+                missing += 1
+        if missing:
+            self.samples = kept_samples
+            self.imgs = kept_samples
+            self.targets = [target for _, target in kept_samples]
+            print(f"[Depth] Skipped {missing} samples without depth targets under {self.root}")
     def _resample_minority_classes(self):
         """
         按照多数类的样本数量，对少数类进行随机有放回重采样。
