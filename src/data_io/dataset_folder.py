@@ -78,7 +78,7 @@ class DatasetFolderFT(datasets.ImageFolder):
         for path, target in self.samples:
             relative_path = Path(path).relative_to(Path(self.root))
             depth_path = self.depth_root / relative_path
-            if depth_path.is_file():
+            if depth_path.is_file() and depth_path.stat().st_size > 0:
                 kept_samples.append((path, target))
             else:
                 missing += 1

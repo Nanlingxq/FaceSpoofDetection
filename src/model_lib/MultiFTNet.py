@@ -66,7 +66,7 @@ class MultiFTNet(nn.Module):
                                       num_classes=num_classes, img_channel=img_channel)
         self.FTGenerator = FTGenerator(in_channels=128)
         self.depth_aux_enabled = bool(self.conf.get('depth_aux_enabled', False))
-        self.DepthGenerator = DepthGenerator(in_channels=128, output_size=self.conf.input_size) if self.depth_aux_enabled else None
+        self.DepthGenerator = DepthGenerator(in_channels=128, output_size=self.conf.get("depth_target_size", self.conf.input_size)) if self.depth_aux_enabled else None
         self._initialize_weights()
 
     def _initialize_weights(self):

@@ -6,6 +6,8 @@ from the shared feature map used by the existing Fourier reconstruction head.
 
 from __future__ import annotations
 
+import math
+
 import torch
 from torch import nn
 from torch.nn import functional as F
@@ -36,12 +38,20 @@ class DepthGenerator(nn.Module):
     def __init__(self, in_channels: int = 128, output_size=(80, 80)) -> None:
         super().__init__()
         self.output_size = tuple(output_size)
-        self.decoder = nn.Sequential(
-            DepthDecoderBlock(in_channels, 96),
-            DepthDecoderBlock(96, 64),
-            DepthDecoderBlock(64, 32),
-        )
-        self.output = nn.Conv2d(32, 1, kernel_size=3, padding=1)
+        # The shared feature map is 10x10. Decode only to the requested
+        # supervision resolution instead of always constructing an 80x80 map.
+        feature_size = 10
+        target_size = max(self.output_size)
+        num_upsamples = max(0, int(math.ceil(math.log2(max(target_size, 1) / feature_size))))
+        channel_schedule = [in_channels, 96, 64, 32]
+        blocks = []
+        for index in range(num_upsamples):
+            in_ch = channel_schedule[min(index, len(channel_schedule) - 1)]
+            out_ch = channel_schedule[min(index + 1, len(channel_schedule) - 1)]
+            blocks.append(DepthDecoderBlock(in_ch, out_ch))
+        self.decoder = nn.Sequential(*blocks)
+        decoder_channels = channel_schedule[min(num_upsamples, len(channel_schedule) - 1)]
+        self.output = nn.Conv2d(decoder_channels, 1, kernel_size=3, padding=1)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.output(self.decoder(x))

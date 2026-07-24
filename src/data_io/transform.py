@@ -350,8 +350,9 @@ class RandomRotation(object):
 class PairedTrainTransform(object):
     """Apply identical geometry to RGB/depth/mask, color jitter only to RGB."""
 
-    def __init__(self, size, crop_scale=(0.9, 1.1), rotation=10, flip_probability=0.5):
+    def __init__(self, size, depth_size=None, crop_scale=(0.9, 1.1), rotation=10, flip_probability=0.5):
         self.size = tuple(size) if isinstance(size, (tuple, list)) else (size, size)
+        self.depth_size = tuple(depth_size) if isinstance(depth_size, (tuple, list)) else (depth_size, depth_size) if depth_size is not None else self.size
         self.crop_scale = crop_scale
         self.rotation = rotation
         self.flip_probability = flip_probability
@@ -365,8 +366,8 @@ class PairedTrainTransform(object):
 
         i, j, h, w = RandomResizedCrop.get_params(image, self.crop_scale, (3.0 / 4.0, 4.0 / 3.0))
         image = F.resized_crop(image, i, j, h, w, self.size, Image.BILINEAR)
-        depth = F.resized_crop(depth, i, j, h, w, self.size, Image.BILINEAR)
-        mask = F.resized_crop(mask, i, j, h, w, self.size, Image.NEAREST)
+        depth = F.resized_crop(depth, i, j, h, w, self.depth_size, Image.BILINEAR)
+        mask = F.resized_crop(mask, i, j, h, w, self.depth_size, Image.NEAREST)
 
         image = ColorJitter(0.4, 0.4, 0.4, 0.1)(image)
         angle = RandomRotation.get_params((-self.rotation, self.rotation))

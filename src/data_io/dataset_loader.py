@@ -18,7 +18,7 @@ from torchvision import transforms as T
 def get_train_loader(conf):
     depth_enabled = bool(getattr(conf, "depth_aux_enabled", False))
     if depth_enabled:
-        train_transform = trans.PairedTrainTransform(size=tuple(conf.input_size))
+        train_transform = trans.PairedTrainTransform(size=tuple(conf.input_size), depth_size=tuple(getattr(conf, "depth_target_size", conf.input_size)))
     else:
         train_transform = trans.Compose([
             trans.ToPILImage(),

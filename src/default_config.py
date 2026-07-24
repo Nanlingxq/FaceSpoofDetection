@@ -51,6 +51,8 @@ def get_default_config():
     # Optional depth auxiliary supervision. False preserves the original
     # classification + Fourier reconstruction training strategy.
     conf.depth_aux_enabled = False
+    # Depth supervision target size; RGB input remains 80x80.
+    conf.depth_target_size = (40, 40)
     conf.depth_target_mode = "class_conditioned"
     conf.depth_loss_weight = 0.1
     conf.depth_gradient_weight = 0.1
