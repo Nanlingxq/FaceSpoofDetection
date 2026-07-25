@@ -12,36 +12,5 @@
         "**/*.pth.tar",
         "**/*.mp4",
         "**/*.avi"
-    ],
-    "files.watcherExclude": {
-        "**/.git/objects/**": true,
-        "**/.git/subtree-cache/**": true,
-        "**/datasets/**": true,
-        "**/3DDFA_V2-master/**": true,
-        "**/saved_logs/**": true,
-        "**/swanlog/**": true,
-        "**/*.png": true,
-        "**/*.jpg": true,
-        "**/*.jpeg": true,
-        "**/*.mp4": true,
-        "**/*.avi": true
-    },
-    "search.exclude": {
-        "**/datasets/**": true,
-        "**/3DDFA_V2-master/**": true,
-        "**/saved_logs/**": true,
-        "**/swanlog/**": true,
-        "**/*.png": true,
-        "**/*.jpg": true,
-        "**/*.jpeg": true,
-        "**/*.mp4": true,
-        "**/*.avi": true
-    },
-    "files.exclude": {
-        "**/__pycache__": true,
-        "**/.pytest_cache": true,
-        "**/datasets": true,
-        "**/saved_logs": true,
-        "**/swanlog": true
-    }
+    ]
 }
