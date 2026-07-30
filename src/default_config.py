@@ -60,7 +60,7 @@ def get_default_config():
     conf.depth_loss_warmup_epochs = 5
     # Depth training uses conservative DataLoader settings to avoid CUDA pin-memory timeouts.
     conf.depth_num_workers = 4
-    conf.depth_batch_size = 256
+    conf.depth_batch_size = 1024
     conf.depth_pin_memory = False
     conf.depth_root_path = "/userdata/lwk/FaceFakeDetection/datasets/CelebA_Spoof/CelebA_Spoof_Depth_DA/train"
     conf.additional_depth_root_paths = [
