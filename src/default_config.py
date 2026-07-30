@@ -54,7 +54,7 @@ def get_default_config():
     # Depth supervision target size; RGB input remains 80x80.
     conf.no_depth_labels = [0, 2]
     conf.depth_target_size = (40, 40)
-    conf.depth_target_mode = "class_conditioned"
+    conf.depth_target_mode = "raw"
     conf.depth_loss_weight = 0.1
     conf.depth_gradient_weight = 0.1
     conf.depth_loss_warmup_epochs = 5

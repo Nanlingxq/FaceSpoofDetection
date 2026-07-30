@@ -21,8 +21,7 @@ The default paths are configured in `src/default_config.py`:
 
 - `depth_root_path`: CelebA_Spoof full-image Depth Anything V2 depth root;
 - `additional_depth_root_paths`: CVPR23-FAS-WILD, DISFA and FF++ full-image Depth Anything V2 roots;
-- `depth_target_mode`: `class_conditioned` uses the prepared depth map for class 1 and a zero
-  target for attack classes;
+- `depth_target_mode`: `raw` uses the prepared nonzero depth map for every label without class-based zeroing;
 - `depth_loss_weight`: final depth loss weight (default `0.1`);
 - `depth_gradient_weight`: local gradient loss weight (default `0.1`);
 - `depth_loss_warmup_epochs`: linear warm-up duration (default `5`).
