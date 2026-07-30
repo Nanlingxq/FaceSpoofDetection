@@ -19,6 +19,7 @@ def get_train_loader(conf):
     depth_enabled = bool(getattr(conf, "depth_aux_enabled", False))
     loader_workers = int(getattr(conf, "depth_num_workers", 4)) if depth_enabled else 16
     loader_pin_memory = bool(getattr(conf, "depth_pin_memory", False)) if depth_enabled else True
+    loader_batch_size = int(getattr(conf, "depth_batch_size", 256)) if depth_enabled else conf.batch_size
     if depth_enabled:
         train_transform = trans.PairedTrainTransform(size=tuple(conf.input_size), depth_size=tuple(getattr(conf, "depth_target_size", conf.input_size)))
     else:
@@ -225,7 +226,7 @@ def get_train_loader(conf):
     # ---------------------------------------------------------
     train_loader = DataLoader(
         final_dataset,
-        batch_size=conf.batch_size,
+        batch_size=loader_batch_size,
         shuffle=True,
         pin_memory=loader_pin_memory,
         num_workers=loader_workers
@@ -237,6 +238,7 @@ def get_test_loader(conf):
     depth_enabled = bool(getattr(conf, "depth_aux_enabled", False))
     loader_workers = int(getattr(conf, "depth_num_workers", 4)) if depth_enabled else 16
     loader_pin_memory = bool(getattr(conf, "depth_pin_memory", False)) if depth_enabled else True
+    loader_batch_size = int(getattr(conf, "depth_batch_size", 256)) if depth_enabled else conf.batch_size
     test_transform = trans.Compose([
         trans.ToPILImage(),
         trans.ToTensor()
@@ -248,7 +250,7 @@ def get_test_loader(conf):
     #                       is_train=False)
     test_loader = DataLoader(
         testset,
-        batch_size=conf.batch_size,
+        batch_size=loader_batch_size,
         shuffle=False,
         pin_memory=loader_pin_memory,
         num_workers=loader_workers)
