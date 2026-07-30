@@ -39,6 +39,10 @@ def parse_args():
         "--no_depth_labels", type=str, default=None,
         help="Comma-separated labels whose depth targets are zeroed in class_conditioned mode."
     )
+    parser.add_argument(
+        "--depth_batch_size", type=int, default=None,
+        help="Override the depth-training batch size for this run."
+    )
     # parser.add_argument("--test_pretrained_only", default= False, help="only test the pretrained model")
     return parser.parse_args()
 
@@ -66,6 +70,10 @@ if __name__ == "__main__":
             conf.no_depth_labels = [int(label.strip()) for label in args.no_depth_labels.split(",") if label.strip()]
         except ValueError as exc:
             raise ValueError("--no_depth_labels must be a comma-separated list of integers") from exc
+    if args.depth_batch_size is not None:
+        if args.depth_batch_size <= 0:
+            raise ValueError("--depth_batch_size must be positive")
+        conf.depth_batch_size = args.depth_batch_size
     run = swanlab.init(project="FaceSpoofDetection", experiment_name=f'Training_in_{args.patch_info},Depth:{conf.depth_aux_enabled},Class:{conf.num_classes}', config=conf)
     trainer = TrainMain(conf)
     trainer.train_model()
