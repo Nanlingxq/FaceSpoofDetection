@@ -200,7 +200,7 @@ class DatasetFolderFT(datasets.ImageFolder):
         path, target = self.samples[index]
         sample = self.loader(path)
 
-        depth_target = depth_mask = None
+        depth_target = None
         if self.depth_aux_enabled:
             if self.depth_root is None:
                 raise RuntimeError("depth_aux_enabled=True but depth_root is not configured")
@@ -210,8 +210,8 @@ class DatasetFolderFT(datasets.ImageFolder):
             if depth_image is None:
                 raise FileNotFoundError(f"Missing depth target for {path}: {depth_path}")
             depth_target = depth_image.astype(np.float32) / 255.0
-            depth_mask = (depth_image > 0).astype(np.uint8)
-            if self.depth_target_mode == "class_conditioned" and target != 1:
+            no_depth_labels = getattr(self.conf, 'no_depth_labels', [0, 2])
+            if self.depth_target_mode == "class_conditioned" and target in no_depth_labels:
                 depth_target = np.zeros_like(depth_target, dtype=np.float32)
 
         # generate the FT picture of the sample
@@ -229,7 +229,7 @@ class DatasetFolderFT(datasets.ImageFolder):
         if self.depth_aux_enabled:
             if not getattr(self.transform, "paired", False):
                 raise TypeError("Depth auxiliary training requires a paired RGB/depth transform")
-            sample, depth_target, depth_mask = self.transform(sample, depth_target, depth_mask)
+            sample, depth_target = self.transform(sample, depth_target)
         elif self.transform is not None:
             try:
                 sample = self.transform(sample)
@@ -239,7 +239,7 @@ class DatasetFolderFT(datasets.ImageFolder):
         if self.target_transform is not None:
             target = self.target_transform(target)
         if self.depth_aux_enabled:
-            return sample, ft_sample, depth_target, depth_mask, target
+            return sample, ft_sample, depth_target, target
         return sample, ft_sample, target
 
 

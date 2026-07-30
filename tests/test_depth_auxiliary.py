@@ -15,6 +15,7 @@ class DepthAuxiliaryTest(unittest.TestCase):
             "embedding_size": 128,
             "input_size": [80, 80],
             "depth_aux_enabled": enabled,
+            "depth_target_size": (40, 40),
         })
 
     def test_disabled_keeps_two_outputs(self):
@@ -29,13 +30,12 @@ class DepthAuxiliaryTest(unittest.TestCase):
         cls, ft, depth = model(torch.randn(2, 3, 80, 80))
         self.assertEqual(tuple(cls.shape), (2, 2))
         self.assertEqual(tuple(ft.shape), (2, 1, 10, 10))
-        self.assertEqual(tuple(depth.shape), (2, 1, 80, 80))
+        self.assertEqual(tuple(depth.shape), (2, 1, 40, 40))
 
     def test_depth_loss_backpropagates(self):
-        prediction = torch.sigmoid(torch.randn(2, 1, 80, 80, requires_grad=True))
+        prediction = torch.sigmoid(torch.randn(2, 1, 40, 40, requires_grad=True))
         target = torch.rand_like(prediction)
-        mask = torch.ones_like(prediction)
-        loss, _, _ = depth_auxiliary_loss(prediction, target, mask)
+        loss, _, _ = depth_auxiliary_loss(prediction, target)
         loss.backward()
         self.assertTrue(torch.isfinite(loss))
 

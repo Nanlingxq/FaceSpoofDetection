@@ -50,18 +50,19 @@ def get_default_config():
 
     # Optional depth auxiliary supervision. False preserves the original
     # classification + Fourier reconstruction training strategy.
-    conf.depth_aux_enabled = False
+    conf.depth_aux_enabled = True
     # Depth supervision target size; RGB input remains 80x80.
+    conf.no_depth_labels = [0, 2]
     conf.depth_target_size = (40, 40)
     conf.depth_target_mode = "class_conditioned"
     conf.depth_loss_weight = 0.1
     conf.depth_gradient_weight = 0.1
     conf.depth_loss_warmup_epochs = 5
-    conf.depth_root_path = "/userdata/lwk/FaceFakeDetection/datasets/CelebA_Spoof/CelebA_Spoof_Depth/train"
+    conf.depth_root_path = "/userdata/lwk/FaceFakeDetection/datasets/CelebA_Spoof/CelebA_Spoof_Depth_DA/train"
     conf.additional_depth_root_paths = [
-        "/userdata/lwk/FaceFakeDetection/datasets/CVPR23-FAS-WILD/train/CVPR2023-Anti_Spoof-Challenge-Release-Data-20230209/Train_Depth",
-        "/userdata/lwk/FaceFakeDetection/datasets/DISFA_Depth/train",
-        "/userdata/lwk/FaceFakeDetection/datasets/ff_plus_Depth/train",
+        "/userdata/lwk/FaceFakeDetection/datasets/CVPR23-FAS-WILD/train/CVPR2023-Anti_Spoof-Challenge-Release-Data-20230209/Train_Depth_DA",
+        "/userdata/lwk/FaceFakeDetection/datasets/DISFA_Depth_DA/train",
+        "/userdata/lwk/FaceFakeDetection/datasets/ff_plus_Depth_DA/train",
     ]
     conf.text_log_root = "/userdata/lwk/FaceFakeDetection/SpoofDetection/Silent-Face-Anti-Spoofing-master/saved_logs"
     # save file path

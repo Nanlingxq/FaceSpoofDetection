@@ -10,7 +10,7 @@ The shared MiniFASNet feature map feeds three training heads:
 
 1. classification (`CrossEntropyLoss`);
 2. Fourier reconstruction (`MSELoss`, unchanged);
-3. an 80x80 depth decoder supervised by the prepared 3DDFA pseudo-depth maps.
+3. a 40x40 depth decoder supervised by the prepared full-image Depth Anything V2 maps.
 
 The depth decoder is training-only and is not returned in evaluation mode, so the
 deployment classification path remains unchanged.
@@ -19,26 +19,27 @@ deployment classification path remains unchanged.
 
 The default paths are configured in `src/default_config.py`:
 
-- `depth_root_path`: CelebA_Spoof depth root;
-- `additional_depth_root_paths`: CVPR23-FAS-WILD, DISFA and FF++ depth roots;
-- `depth_target_mode`: `class_conditioned` uses 3DDFA depth for class 1 and a zero
+- `depth_root_path`: CelebA_Spoof full-image Depth Anything V2 depth root;
+- `additional_depth_root_paths`: CVPR23-FAS-WILD, DISFA and FF++ full-image Depth Anything V2 roots;
+- `depth_target_mode`: `class_conditioned` uses the prepared depth map for class 1 and a zero
   target for attack classes;
 - `depth_loss_weight`: final depth loss weight (default `0.1`);
 - `depth_gradient_weight`: local gradient loss weight (default `0.1`);
 - `depth_loss_warmup_epochs`: linear warm-up duration (default `5`).
 
-The loader fails loudly if an enabled depth file is missing instead of silently
-training with an invalid target. RGB and depth use the same random crop, rotation
-and flip; color jitter is applied only to RGB.
+The loader skips samples without a prepared depth file. RGB and depth use the same
+random crop, rotation and flip; color jitter is applied only to RGB. The 80x80
+stored depth image is transformed to the configured 40x40 supervision target.
 
 ## Loss
 
 ```text
 L = 0.5 L_cls + 0.5 L_fourier + lambda_depth(t) L_depth
-L_depth = masked_smooth_l1 + depth_gradient_weight * gradient_loss
+L_depth = smooth_l1 + depth_gradient_weight * gradient_loss
 ```
 
-The depth loss ignores pixels outside the valid 3DDFA face support.
+Both terms are averaged over the complete depth map. No face mask or valid-face
+mask is applied, so background depth contributes to the supervision as well.
 
 ## Run
 

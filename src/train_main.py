@@ -73,7 +73,7 @@ class TrainMain:
         try:
             train_batch = next(iter(self.train_loader))
             if self.depth_aux_enabled:
-                sample, ft_sample, _, _, target = train_batch
+                sample, ft_sample, _, target = train_batch
             else:
                 sample, ft_sample, target = train_batch
             
@@ -153,8 +153,8 @@ class TrainMain:
 
             for batch in tqdm(iter(self.train_loader)):
                 if self.depth_aux_enabled:
-                    sample, ft_sample, depth_target, depth_mask, target = batch
-                    imgs = [sample, ft_sample, depth_target, depth_mask]
+                    sample, ft_sample, depth_target, target = batch
+                    imgs = [sample, ft_sample, depth_target]
                 else:
                     sample, ft_sample, target = batch
                     imgs = [sample, ft_sample]
@@ -218,11 +218,9 @@ class TrainMain:
         if self.depth_aux_enabled:
             embeddings, feature_map, depth_prediction = outputs
             depth_target = imgs[2].to(self.conf.device, non_blocking=True)
-            depth_mask = imgs[3].to(self.conf.device, non_blocking=True)
             depth_loss, depth_pixel, depth_gradient = depth_auxiliary_loss(
                 depth_prediction,
                 depth_target,
-                depth_mask,
                 gradient_weight=float(getattr(self.conf, "depth_gradient_weight", 0.1)),
             )
         else:
