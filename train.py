@@ -11,9 +11,47 @@ import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
 import argparse
 import os
-import swanlab
-from src.train_main import TrainMain
-from src.default_config import get_default_config, update_config
+from urllib.parse import urlparse
+
+
+def _remove_unreachable_local_proxy():
+    """Prevent SSH-local proxy settings from breaking cloud metric uploads.
+
+    The server can reach SwanLab directly, but the interactive SSH environment
+    may export a loopback proxy (for example, 127.0.0.1:17891). That proxy is
+    tied to the client session and becomes unreachable after disconnecting.
+    Remove only loopback proxy values; a deliberately configured remote proxy
+    is preserved. Set FACE_SPOOF_KEEP_LOCAL_PROXY=1 to opt out.
+    """
+    if os.environ.get("FACE_SPOOF_KEEP_LOCAL_PROXY") == "1":
+        return
+
+    proxy_keys = (
+        "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "WSS_PROXY",
+        "http_proxy", "https_proxy", "all_proxy", "wss_proxy",
+    )
+    local_hosts = {"127.0.0.1", "localhost", "::1"}
+    removed = []
+    for key in proxy_keys:
+        value = os.environ.get(key)
+        if not value:
+            continue
+        try:
+            host = urlparse(value).hostname
+        except ValueError:
+            host = None
+        if host in local_hosts:
+            removed.append(key)
+            os.environ.pop(key, None)
+    if removed:
+        print(
+            "[Network] Removed unreachable loopback proxy variables: "
+            + ", ".join(sorted(set(removed)))
+        )
+
+
+# Must run before importing SwanLab or any module that creates its HTTP client.
+_remove_unreachable_local_proxy()
 
 
 def parse_args():
