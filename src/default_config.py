@@ -19,7 +19,7 @@ def get_default_config():
     conf = EasyDict()
 
     # ----------------------training---------------
-    conf.lr = 1e-4
+    conf.lr = 0.1
     # [9, 13, 15]
     conf.milestones = [10, 15, 22]  # down learing rate
     conf.gamma = 0.1
@@ -39,10 +39,36 @@ def get_default_config():
     # conf.test_root_path = '/userdata/lwk/FaceFakeDetection/datasets/CelebA_Spoof/CelebA_Spoof/'
     # conf.test_json_path = '/userdata/lwk/FaceFakeDetection/datasets/CelebA_Spoof/CelebA_Spoof/metas/intra_test/test_label.json'
     
-    conf.enable_resample = True
+    conf.enable_resample = False
     conf.test_root_path = '/userdata/lwk/FaceFakeDetection/datasets/CelebA_Spoof/CelebA_Spoof_Crop/test'
     conf.train_root_path = '/userdata/lwk/FaceFakeDetection/datasets/CelebA_Spoof/CelebA_Spoof_Crop/train'
-    conf.additional_train_json_path = '/userdata/lwk/FaceFakeDetection/datasets/CVPR23-FAS-WILD/train/CVPR2023-Anti_Spoof-Challenge-Release-Data-20230209/Train_Crop'
+    conf.additional_train_json_path = [
+        "/userdata/lwk/FaceFakeDetection/datasets/CVPR23-FAS-WILD/train/CVPR2023-Anti_Spoof-Challenge-Release-Data-20230209/Train_Crop",
+        "/userdata/lwk/FaceFakeDetection/datasets/DISFA_Crop/train",
+        "/userdata/lwk/FaceFakeDetection/datasets/ff_plus_Crop/train",
+    ]
+
+    # Optional depth auxiliary supervision. False preserves the original
+    # classification + Fourier reconstruction training strategy.
+    conf.depth_aux_enabled = True
+    # Depth supervision target size; RGB input remains 80x80.
+    conf.no_depth_labels = [0, 2]
+    conf.depth_target_size = (40, 40)
+    conf.depth_target_mode = "raw"
+    conf.depth_loss_weight = 0.1
+    conf.depth_gradient_weight = 0.1
+    conf.depth_loss_warmup_epochs = 5
+    # Depth training uses conservative DataLoader settings to avoid CUDA pin-memory timeouts.
+    conf.depth_num_workers = 4
+    conf.depth_batch_size = 1024
+    conf.depth_pin_memory = False
+    conf.depth_root_path = "/userdata/lwk/FaceFakeDetection/datasets/CelebA_Spoof/CelebA_Spoof_Depth_DA/train"
+    conf.additional_depth_root_paths = [
+        "/userdata/lwk/FaceFakeDetection/datasets/CVPR23-FAS-WILD/train/CVPR2023-Anti_Spoof-Challenge-Release-Data-20230209/Train_Depth_DA",
+        "/userdata/lwk/FaceFakeDetection/datasets/DISFA_Depth_DA/train",
+        "/userdata/lwk/FaceFakeDetection/datasets/ff_plus_Depth_DA/train",
+    ]
+    conf.text_log_root = "/userdata/lwk/FaceFakeDetection/SpoofDetection/Silent-Face-Anti-Spoofing-master/saved_logs"
     # save file path
     conf.snapshot_dir_path = './saved_logs/snapshot'
 

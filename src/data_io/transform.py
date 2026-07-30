@@ -345,3 +345,45 @@ class RandomRotation(object):
         return F.rotate(img, angle, self.resample, self.expand, self.center)
 
 
+
+
+class PairedTrainTransform(object):
+    """Apply identical geometry to RGB/depth, with color jitter only on RGB."""
+
+    def __init__(self, size, depth_size=None, crop_scale=(0.9, 1.1), rotation=10, flip_probability=0.5):
+        self.size = tuple(size) if isinstance(size, (tuple, list)) else (size, size)
+        self.depth_size = tuple(depth_size) if isinstance(depth_size, (tuple, list)) else (depth_size, depth_size) if depth_size is not None else self.size
+        self.crop_scale = crop_scale
+        self.rotation = rotation
+        self.flip_probability = flip_probability
+        self.paired = True
+        self.to_pil = ToPILImage()
+
+    def __call__(self, image, depth):
+        image = self.to_pil(image)
+        depth = Image.fromarray(np.asarray(depth, dtype=np.uint8), mode="L")
+
+        i, j, h, w = RandomResizedCrop.get_params(image, self.crop_scale, (3.0 / 4.0, 4.0 / 3.0))
+        image_width, image_height = image.size
+        depth_width, depth_height = depth.size
+        depth_i = int(round(i * depth_height / image_height))
+        depth_j = int(round(j * depth_width / image_width))
+        depth_h = max(1, int(round(h * depth_height / image_height)))
+        depth_w = max(1, int(round(w * depth_width / image_width)))
+
+        image = F.resized_crop(image, i, j, h, w, self.size, Image.BILINEAR)
+        depth = F.resized_crop(depth, depth_i, depth_j, depth_h, depth_w, self.depth_size, Image.BILINEAR)
+
+        image = ColorJitter(0.4, 0.4, 0.4, 0.1)(image)
+        angle = RandomRotation.get_params((-self.rotation, self.rotation))
+        image = F.rotate(image, angle, resample=Image.BILINEAR)
+        depth = F.rotate(depth, angle, resample=Image.BILINEAR)
+
+        if random.random() < self.flip_probability:
+            image = F.hflip(image)
+            depth = F.hflip(depth)
+
+        import torch
+        image_tensor = F.to_tensor(image)
+        depth_tensor = torch.from_numpy(np.asarray(depth, dtype=np.float32) / 255.0).unsqueeze(0)
+        return image_tensor, depth_tensor

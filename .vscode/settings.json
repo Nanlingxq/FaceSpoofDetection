@@ -1,0 +1,16 @@
+{
+    "python.analysis.diagnosticMode": "openFilesOnly",
+    "python.analysis.indexing": false,
+    "python.analysis.exclude": [
+        "**/datasets/**",
+        "**/3DDFA_V2-master/**",
+        "**/saved_logs/**",
+        "**/swanlog/**",
+        "**/resources/**",
+        "**/*.pth",
+        "**/*.pt",
+        "**/*.pth.tar",
+        "**/*.mp4",
+        "**/*.avi"
+    ]
+}

@@ -6,6 +6,7 @@
 # @Software : PyCharm
 
 import os
+import logging
 import torch
 import swanlab
 from torch import optim
@@ -16,6 +17,7 @@ from torch.cuda.amp import autocast, GradScaler
 
 from src.utility import get_time
 from src.model_lib.MultiFTNet import MultiFTNet
+from src.model_lib.depth_auxiliary import depth_auxiliary_loss
 from src.data_io.dataset_loader import get_train_loader, get_test_loader
 from torchvision.utils import save_image
 from AnaysisTools.confuion_matrix import print_confusion_matrix
@@ -39,10 +41,30 @@ class TrainMain:
         self.debug_img_dir = os.path.join(self.save_dir, "debug_images")
         if not os.path.exists(self.debug_img_dir):
             os.makedirs(self.debug_img_dir)
-        
+        self.depth_aux_enabled = bool(getattr(self.conf, "depth_aux_enabled", False))
+        self._setup_text_logger()
+        self._log(f"Training started. depth_aux_enabled={self.depth_aux_enabled}")
         self._save_init_sample_images()
         self.best_val_acc = 0.0
         self.scaler = GradScaler()
+
+    def _setup_text_logger(self):
+        log_root = getattr(self.conf, "text_log_root", os.path.join(self.conf.model_path, "..", ".."))
+        log_dir = os.path.join(log_root, "train_logs")
+        os.makedirs(log_dir, exist_ok=True)
+        self.text_log_path = os.path.join(log_dir, f"{self.conf.job_name}_{self.start_time}.txt")
+        self.logger = logging.getLogger(f"face_spoof_train_{id(self)}")
+        self.logger.setLevel(logging.INFO)
+        self.logger.propagate = False
+        handler = logging.FileHandler(self.text_log_path, encoding="utf-8")
+        handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
+        self.logger.addHandler(handler)
+        print(f"[Log] Text training log: {self.text_log_path}")
+
+    def _log(self, message):
+        print(message)
+        if hasattr(self, "logger"):
+            self.logger.info(message)
 
     def _save_init_sample_images(self):
         print("\n[Debug] 正在从 DataLoader 提取初始 Batch 用于保存预览图...")
@@ -50,7 +72,10 @@ class TrainMain:
         # --- 保存训练集样本 ---
         try:
             train_batch = next(iter(self.train_loader))
-            sample, ft_sample, target = train_batch 
+            if self.depth_aux_enabled:
+                sample, ft_sample, _, target = train_batch
+            else:
+                sample, ft_sample, target = train_batch
             
             # 【关键修改】：将 [B, C, H, W] 中的 C 维度进行 [2, 1, 0] 反转，即 BGR 转 RGB
             sample_rgb = sample[:, [2, 1, 0], :, :]
@@ -105,33 +130,42 @@ class TrainMain:
 
     def _train_stage(self):
         self.model.train()
-        running_loss = 0.
-        running_acc = 0.
-        running_loss_cls = 0.
-        running_loss_ft = 0.
+        running_loss = 0.0
+        running_acc = 0.0
+        running_loss_cls = 0.0
+        running_loss_ft = 0.0
+        running_loss_depth = 0.0
         is_first = True
 
         for e in range(self.start_epoch, self.conf.epochs):
-                
             if is_first:
                 val_acc = self._validate_stage(epoch=e)
                 self.writer = SummaryWriter(self.conf.log_path)
                 is_first = False
 
-            print('epoch {} started'.format(e))
-            print("lr: ", self.schedule_lr.get_lr())
+            self._log(f"epoch {e} started")
+            self._log(f"lr: {self.schedule_lr.get_last_lr()[0]:.8f}")
+            if self.depth_aux_enabled:
+                warmup = max(1, int(getattr(self.conf, "depth_loss_warmup_epochs", 5)))
+                depth_weight = float(getattr(self.conf, "depth_loss_weight", 0.1)) * min(1.0, (e + 1) / warmup)
+            else:
+                depth_weight = 0.0
 
-            for sample, ft_sample, target in tqdm(iter(self.train_loader)):
-
-                imgs = [sample, ft_sample]
-                labels = target
-
-                loss, acc, loss_cls, loss_ft = self._train_batch_data(imgs, labels)
+            for batch in tqdm(iter(self.train_loader)):
+                if self.depth_aux_enabled:
+                    sample, ft_sample, depth_target, target = batch
+                    imgs = [sample, ft_sample, depth_target]
+                else:
+                    sample, ft_sample, target = batch
+                    imgs = [sample, ft_sample]
+                loss, acc, loss_cls, loss_ft, loss_depth, _, _ = self._train_batch_data(
+                    imgs, target, depth_weight=depth_weight
+                )
                 running_loss_cls += loss_cls
                 running_loss_ft += loss_ft
+                running_loss_depth += loss_depth
                 running_loss += loss
                 running_acc += acc
-
                 self.step += 1
 
                 if self.step % self.board_loss_every == 0 and self.step != 0:
@@ -140,50 +174,69 @@ class TrainMain:
                     lr = self.optimizer.param_groups[0]['lr']
                     loss_cls_board = running_loss_cls / self.board_loss_every
                     loss_ft_board = running_loss_ft / self.board_loss_every
-
-                    # 3. 使用 swanlab.log 一次性提交一个字典，代替多行 writer.add_scalar
+                    loss_depth_board = running_loss_depth / self.board_loss_every
                     swanlab.log({
                         'Training/Loss': loss_board,
                         'Training/Acc': acc_board,
                         'Training/Learning_rate': lr,
                         'Training/Loss_cls': loss_cls_board,
-                        'Training/Loss_ft': loss_ft_board
+                        'Training/Loss_ft': loss_ft_board,
+                        'Training/Loss_depth': loss_depth_board,
+                        'Training/Depth_weight': depth_weight,
                     }, step=self.step)
-
-                    running_loss = 0.
-                    running_acc = 0.
-                    running_loss_cls = 0.
-                    running_loss_ft = 0.
+                    self._log(
+                        f"step={self.step} loss={loss_board:.6f} acc={acc_board:.6f} "
+                        f"cls={loss_cls_board:.6f} ft={loss_ft_board:.6f} "
+                        f"depth={loss_depth_board:.6f} depth_weight={depth_weight:.4f}"
+                    )
+                    running_loss = running_acc = running_loss_cls = running_loss_ft = running_loss_depth = 0.0
                 if self.step % self.save_every == 0 and self.step != 0:
                     self._save_state(extra=self.conf.job_name)
 
             val_acc = self._validate_stage(epoch=e)
-
+            self._log(f"epoch={e} validation_acc={val_acc:.6f}")
             if val_acc > self.best_val_acc:
                 self.best_val_acc = val_acc
-                print(f"🌟 新的最佳验证集精度: {self.best_val_acc * 100:.2f}%! 正在保存模型...")
+                self._log(f"New best validation accuracy: {self.best_val_acc * 100:.2f}%")
                 self._save_state(extra="best_model", best=True)
-
             self.schedule_lr.step()
 
-        time_stamp = get_time()
         self._save_state(extra=self.conf.job_name)
+        self._log("Training finished")
         self.writer.close()
+        for handler in getattr(self, "logger", logging.getLogger()).handlers[:]:
+            handler.flush()
+            handler.close()
+            self.logger.removeHandler(handler)
 
-    def _train_batch_data(self, imgs, labels):
+    def _train_batch_data(self, imgs, labels, depth_weight=0.0):
         self.optimizer.zero_grad()
-        labels = labels.to(self.conf.device)
-        # embeddings, feature_map = self.model.forward(imgs[0].to(self.conf.device))
-        embeddings, feature_map = self.model(imgs[0].to(self.conf.device))
+        labels = labels.to(self.conf.device, non_blocking=True)
+        rgb = imgs[0].to(self.conf.device, non_blocking=True)
+        ft_target = imgs[1].to(self.conf.device, non_blocking=True)
+        outputs = self.model(rgb)
+        if self.depth_aux_enabled:
+            embeddings, feature_map, depth_prediction = outputs
+            depth_target = imgs[2].to(self.conf.device, non_blocking=True)
+            depth_loss, depth_pixel, depth_gradient = depth_auxiliary_loss(
+                depth_prediction,
+                depth_target,
+                gradient_weight=float(getattr(self.conf, "depth_gradient_weight", 0.1)),
+            )
+        else:
+            embeddings, feature_map = outputs
+            depth_loss = depth_pixel = depth_gradient = torch.zeros((), device=self.conf.device)
 
         loss_cls = self.cls_criterion(embeddings, labels)
-        loss_fea = self.ft_criterion(feature_map, imgs[1].to(self.conf.device))
-
-        loss = 0.5*loss_cls + 0.5*loss_fea
+        loss_fea = self.ft_criterion(feature_map, ft_target)
+        loss = 0.5 * loss_cls + 0.5 * loss_fea + depth_weight * depth_loss
         acc = self._get_accuracy(embeddings, labels)[0]
         loss.backward()
         self.optimizer.step()
-        return loss.item(), acc, loss_cls.item(), loss_fea.item()
+        return (
+            loss.item(), acc.item(), loss_cls.item(), loss_fea.item(),
+            depth_loss.item(), depth_pixel.item(), depth_gradient.item()
+        )
     
     def _validate_stage(self, epoch):
         self.model.eval()  # 切换到验证模式
