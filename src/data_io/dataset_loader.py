@@ -17,6 +17,8 @@ from torchvision import transforms as T
 
 def get_train_loader(conf):
     depth_enabled = bool(getattr(conf, "depth_aux_enabled", False))
+    loader_workers = int(getattr(conf, "depth_num_workers", 4)) if depth_enabled else 16
+    loader_pin_memory = bool(getattr(conf, "depth_pin_memory", False)) if depth_enabled else True
     if depth_enabled:
         train_transform = trans.PairedTrainTransform(size=tuple(conf.input_size), depth_size=tuple(getattr(conf, "depth_target_size", conf.input_size)))
     else:
@@ -225,13 +227,16 @@ def get_train_loader(conf):
         final_dataset,
         batch_size=conf.batch_size,
         shuffle=True,
-        pin_memory=True,
-        num_workers=16
+        pin_memory=loader_pin_memory,
+        num_workers=loader_workers
     )
 
     return train_loader
 
 def get_test_loader(conf):
+    depth_enabled = bool(getattr(conf, "depth_aux_enabled", False))
+    loader_workers = int(getattr(conf, "depth_num_workers", 4)) if depth_enabled else 16
+    loader_pin_memory = bool(getattr(conf, "depth_pin_memory", False)) if depth_enabled else True
     test_transform = trans.Compose([
         trans.ToPILImage(),
         trans.ToTensor()
@@ -245,7 +250,7 @@ def get_test_loader(conf):
         testset,
         batch_size=conf.batch_size,
         shuffle=False,
-        pin_memory=True,
-        num_workers=16)
+        pin_memory=loader_pin_memory,
+        num_workers=loader_workers)
     
     return test_loader

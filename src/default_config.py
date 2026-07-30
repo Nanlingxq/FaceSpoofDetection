@@ -58,6 +58,9 @@ def get_default_config():
     conf.depth_loss_weight = 0.1
     conf.depth_gradient_weight = 0.1
     conf.depth_loss_warmup_epochs = 5
+    # Depth training uses conservative DataLoader settings to avoid CUDA pin-memory timeouts.
+    conf.depth_num_workers = 4
+    conf.depth_pin_memory = False
     conf.depth_root_path = "/userdata/lwk/FaceFakeDetection/datasets/CelebA_Spoof/CelebA_Spoof_Depth_DA/train"
     conf.additional_depth_root_paths = [
         "/userdata/lwk/FaceFakeDetection/datasets/CVPR23-FAS-WILD/train/CVPR2023-Anti_Spoof-Challenge-Release-Data-20230209/Train_Depth_DA",
